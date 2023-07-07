@@ -1,0 +1,85 @@
+- return nil if status.marked_for_destruction? || status.marked_for_mass_destruction? || status.proper.nil?
+
+.batch-table__row{style:'overflow:hidden;'}
+  %label.batch-table__row__select.batch-checkbox
+    = f.check_box :status_ids, { multiple: true, include_hidden: false }, status.id
+  .batch-table__row__content
+    .status__content><
+      - if status.proper.spoiler_text.blank?
+        = Formatter.instance.plaintext(status.proper)
+      - else
+        %details<
+          %summary><
+            %strong> Content warning: #{Formatter.instance.format_spoiler(status.proper)}
+          = Formatter.instance.plaintext(status.proper)
+
+    - if status.poll
+      %div{style:'display:block;padding:10px 0 5px;'}
+        - status.poll.options.each_with_index do |key, i|
+          %div{style:'display:flex;margin-bottom:5px;'}
+            - percent = status.poll.votes_count == 0 ? 0 : status.poll.cached_tallies[i] / status.poll.votes_count * 100
+            %span{style:'display:block;width:55px;flex-shrink:0;font-weight:bold;padding-right:10px;line-height:1.5em;'}= "#{percent}%"
+            %span{style:'display:flex;border:1px solid #6C6C6C;border-radius:8px;line-height:1.5em;padding:2px 10px;flex-grow:1;'}
+              %span= key
+
+    - if !status.proper.media_attachments.empty?          
+      %div{style:'display:flex;flex-direction:row;flex-wrap:wrap;width:100%'}
+        - status.proper.media_attachments.map do |attachment|
+          - if attachment.type == "video" || attachment.type == "gifv"
+            %video{src: attachment.file.url(:playable), controls: true, width: '355px', height: '200px', alt: attachment.description, style:'margin-right:2px;margin-bottom:2px;'}
+          - else
+            %img{src: attachment.file.url(:small), width: 'auto', height: '200px', alt: attachment.description, style:'max-width:500px;object-fit:cover;margin-right:2px;margin-bottom:2px;'}
+
+    .detailed-status__meta{style:'display:flex;flex-direction:row;flex-wrap:wrap;color:#757575;'}
+      %div{style:'display:flex;flex-direction:row;color:#757575;margin-right:auto;padding-right:10px;'}
+        %div{style:'display:inline-block;margin-right:5px;color:#757575;'}
+          = admin_account_inline_link_to(status.proper.account, defined?(public_route))
+          ·
+        
+        - if status.reply?
+          %div{style:'display:inline-block;margin-right:5px;color:#757575;'}
+            %span{style:'display:inline-block;margin-right:5px;color:#757575;'} Comment
+            ·
+        
+        - if status.quote?
+          %div{style:'display:inline-block;margin-right:5px;color:#757575;'}
+            %span{style:'display:inline-block;margin-right:5px;color:#757575;'} Quote
+            ·
+
+        = link_to TagManager.instance.url_for(status), class: 'detailed-status__datetime', target: stream_link_target, rel: 'noopener' do
+          %time.formatted{style: 'margin-right:5px;', datetime: status.created_at.iso8601, title: l(status.created_at) }= l(status.created_at)
+        ·
+        - if status.reblog?
+          = fa_icon('retweet fw')
+          = t('statuses.boosted_from_html', acct_link: admin_account_inline_link_to(status.proper.account, defined?(public_route)))
+        - else
+          = fa_visibility_icon(status)
+          = t("statuses.visibilities.#{status.visibility}")
+        - if status.proper.sensitive?
+          %span{style:'margin:0 5px;'} ·
+          = fa_icon('eye-slash fw')
+          = t('stream_entries.sensitive_content')
+        - if !status.group_id.nil?
+          %span{style:'margin-left:5px;'} ·
+          %a{href: "/groups/#{status.group_id}", style: "margin:0 5px;color:#757575;text-decoration:none;font-size:14px;"}= status.group.title
+        - if status.tombstoned?
+          ·
+          = fa_icon('database fw')
+          = 'Tombstoned'
+    
+      - favs = status.favourites_count
+      - replies = status.replies_count
+      - reposts = status.reblogs_count
+      - quotes = status.quotes_count
+      - if favs > 0 || replies > 0 || reposts > 0 || quotes > 0
+        %div{style: ''}
+          - int_styles = 'display:inline-block;margin:0 5px;color:#757575;font-size:14px;text-decoration:none;cursor:pointer;'
+          - if favs > 0
+            %a{style:int_styles, href: TagManager.instance.url_for(status)}= "#{favs} reaction#{favs > 1 ? 's' : ''}"
+          - if replies > 0
+            %a{style:int_styles, href: TagManager.instance.url_for(status)}= "#{replies} repl#{replies > 1 ? 'ies' : 'y'}"
+          - if reposts > 0
+            %a{style:int_styles, href: TagManager.instance.url_for(status)}= "#{reposts} repost#{reposts > 1 ? 's' : ''}"
+          - if quotes > 0
+            %a{style:int_styles, href: TagManager.instance.url_for(status)}= "#{quotes} quote#{quotes > 1 ? 's' : ''}"
+          
